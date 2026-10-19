@@ -93,7 +93,7 @@ def _feedforwardness_iteration(G):
     g, num_paths = 0.0, 0
     for s in top:
         for t in bottom:
-            if s == t:  # networkx >= 3 yields the trivial path [s] here; networkx 2.x (used by the thesis) yields none
+            if s == t:  # networkx >= 3 yields the trivial path [s] here; networkx 2.x yields none
                 continue
             for path in nx.all_simple_paths(G, source=s, target=t):
                 g += len(path) / sum(weights[v] for v in path)
