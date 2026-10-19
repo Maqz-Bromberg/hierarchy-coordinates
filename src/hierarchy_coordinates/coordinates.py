@@ -22,10 +22,11 @@ HierarchyCoordinates = namedtuple("HierarchyCoordinates", "treeness feedforwardn
 # ---------------------------------------------------------------------------- thresholds and condensation
 
 def exponential_thresholds(exponent, dist_max, dist_min, n):
-    """``utility_funcs.exponentially_distribute`` from the thesis code, offset by dist_min so the thresholds lie in
-    (dist_min, dist_max] (the thesis code omitted the offset)."""
+    """``utility_funcs.exponentially_distribute`` from the thesis code, with two fixes: offset by dist_min, and spaced
+    over n + 1 points with the top one (= dist_max) dropped, so the thresholds lie in (dist_min, dist_max). The
+    thesis code omitted the offset and kept dist_max, whose graph has no edges."""
     total = np.exp(exponent * 2 * np.e) - np.exp(exponent * np.e)
-    props = [(np.exp(exponent * (np.e + np.e / (n - i))) - np.exp(exponent * np.e)) / total for i in range(n)]
+    props = [(np.exp(exponent * (np.e + np.e / (n + 1 - i))) - np.exp(exponent * np.e)) / total for i in range(n)]
     return dist_min + np.array(props) * (dist_max - dist_min)
 
 

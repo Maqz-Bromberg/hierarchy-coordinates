@@ -28,8 +28,10 @@ The paper defines the coordinates for unweighted graphs. A weighted graph is han
 
 1. Threshold the weights into binary graphs (`num_thresholds=8`, spaced linearly from the smallest weight to the
    largest; `exp_threshold_distribution=0.5` spaces them exponentially as in the thesis). A binary matrix uses a
-   single threshold. The thesis code scaled the exponential thresholds by (max − min) without adding min, so they
-   started near 0 rather than at the smallest weight; here they are offset by min.
+   single threshold. The exponential thresholds differ from the thesis code in two ways. The thesis scaled them by
+   (max − min) without adding min, so they started near 0 rather than at the smallest weight; here they are offset by
+   min. Its top threshold also equalled the largest weight, so that graph had no edges and added (T, F, O) = (0, 0, 1)
+   to the average; here, as with the linear thresholds, every threshold is below the largest weight.
 2. Condense each binary graph into a DAG of its strongly connected components, each node weighted by the number of
    original nodes it holds, and keep the largest weakly connected component.
 3. Compute the coordinates of that DAG (appendix D of the paper):

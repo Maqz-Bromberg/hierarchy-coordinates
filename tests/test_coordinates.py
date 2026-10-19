@@ -65,9 +65,14 @@ def test_unreachable_choices_do_not_count():
 
 
 def test_exponential_thresholds_span_the_weights():
-    """Exponential thresholds start above the smallest weight, not near 0, and end at the largest."""
+    """Exponential thresholds start above the smallest weight, not near 0, and stay below the largest, whose graph
+    would have no edges."""
     A = np.array([[0.5, 1.0], [0.7, 0.9]])
     th = thresholds_for(A, 8, exp_threshold_distribution=0.5)
     assert len(th) == 8
-    assert min(th) > 0.5
-    assert max(th) == pytest.approx(1.0)
+    assert 0.5 < min(th) and max(th) < 1.0
+
+
+def test_exponential_thresholds_keep_binary_edges():
+    hc = hierarchy_coordinates(balanced_tree(2, 3), exp_threshold_distribution=0.5)
+    assert hc == pytest.approx((1.0, 1.0, 1.0))
