@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from hierarchy_coordinates import graph_entropy, hierarchy_coordinates
+from hierarchy_coordinates.coordinates import thresholds_for
 
 
 def balanced_tree(branching, height):
@@ -61,3 +62,12 @@ def test_unreachable_choices_do_not_count():
     """0 -> 1 -> 2 and 3 -> 4 <- 5: the fork into 4 is met only by the walk from 4, so it is charged once of two."""
     G = nx.DiGraph([(0, 1), (1, 2), (3, 4), (5, 4)])
     assert graph_entropy(G, forward=False) == pytest.approx(np.log(2) / 2)
+
+
+def test_exponential_thresholds_span_the_weights():
+    """Exponential thresholds start above the smallest weight, not near 0, and end at the largest."""
+    A = np.array([[0.5, 1.0], [0.7, 0.9]])
+    th = thresholds_for(A, 8, exp_threshold_distribution=0.5)
+    assert len(th) == 8
+    assert min(th) > 0.5
+    assert max(th) == pytest.approx(1.0)

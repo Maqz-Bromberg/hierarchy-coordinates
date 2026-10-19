@@ -26,8 +26,10 @@ hc.treeness, hc.feedforwardness, hc.orderability
 
 The paper defines the coordinates for unweighted graphs. A weighted graph is handled as in Bromberg (2020):
 
-1. Threshold the weights into binary graphs (`num_thresholds=8`, spaced linearly; `exp_threshold_distribution=0.5`
-   spaces them exponentially as in the thesis). A binary matrix uses a single threshold.
+1. Threshold the weights into binary graphs (`num_thresholds=8`, spaced linearly from the smallest weight to the
+   largest; `exp_threshold_distribution=0.5` spaces them exponentially as in the thesis). A binary matrix uses a
+   single threshold. The thesis code scaled the exponential thresholds by (max − min) without adding min, so they
+   started near 0 rather than at the smallest weight; here they are offset by min.
 2. Condense each binary graph into a DAG of its strongly connected components, each node weighted by the number of
    original nodes it holds, and keep the largest weakly connected component.
 3. Compute the coordinates of that DAG (appendix D of the paper):
@@ -46,14 +48,6 @@ their own.
 single fork a → {b, c} would have H_f = 0 and every directed tree T = 0, contradicting the paper's own Lemma (T = F = O
 = 1 for trees with equal-depth leaves) and its Figs. 12–13. The k = 0 identity term is therefore included. The tests
 check the Lemma cases.
-
-**Unresolved: where exponential thresholds start.** The linear thresholds run from the smallest weight up to the
-largest. The exponential ones (`exp_threshold_distribution`), taken from the thesis code, are scaled by (max − min)
-but not shifted by min, so they run from near 0 up to max − min. When the smallest weight is well above 0, the low
-thresholds all sit below every weight and produce the same complete graph. For example, with weights in [0.5, 1] all
-eight thresholds fall in [0.03, 0.5], none above the smallest weight, so every threshold keeps essentially every edge.
-It is unclear whether the thesis intended this or meant to add min, so the
-behaviour is kept as is.
 
 ## Migrating from the 2021 package
 
