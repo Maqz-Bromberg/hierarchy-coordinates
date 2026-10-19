@@ -56,8 +56,11 @@ check the Lemma cases.
 Treeness now follows the paper's definition (eqs. D4–D9), so its values differ from the 2021 package. With the
 default linear thresholds, F and O are unchanged. Exponential thresholds are set by `exp_threshold_distribution` (the
 2021 package's `threshold_distribution`) and use the thesis spacing with the two fixes in step 1, so all three
-coordinates can differ when they are used. `average_hierarchy_coordinates(A)` returned `(orderability, feedforwardness, treeness)`;
-`hierarchy_coordinates(A)` returns a named tuple in the order `(treeness, feedforwardness, orderability)`.
+coordinates can differ when they are used.
+
+The 2021 README documents `average_hierarchy_coordinates(A)` returning `(orderability, feedforwardness, treeness)`,
+but its code defines `hierarchy_coordinates(A)` returning `(treeness, feedforwardness, orderability)`. This package
+keeps the code's name and order, now as a named tuple.
 
 ## References
 
