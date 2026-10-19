@@ -5,18 +5,6 @@ Follows Corominas-Murtra, Goñi, Solé & Rodríguez-Caso (2013), PNAS 110:13316,
 thesis: threshold the weights into binary graphs, condense each to a node-weighted DAG, keep its largest weakly
 connected component, compute (T, F, O) and average over thresholds.
 
-``variant="corominas"`` (default) uses the paper's definitions. ``variant="thesis"`` reproduces
-``hierarchy_coordinates.py`` in the thesis code (github.com/MaxBromberg/Networks_Via_Diffusion, commit 6eeb396),
-which differs in two ways (see the README):
-
-1. Path probabilities use element-wise powers ``np.power(B, k)`` for k = 0 .. n-1 instead of matrix powers B^k.
-   Because 0**0 = 1 the k = 0 term is the all-ones matrix, so every pair gets probability >= 1 and the entropies
-   collapse to H_b = sum_{v not maximal} log k_in(v) and H_f = sum_{v not minimal} log k_out(v), with no weighting
-   by whether a path actually crosses v. (The forward entropy also uses the column-normalized B.)
-2. Treeness averages over the top-down and bottom-up pruning sequences each including G, so G counts twice,
-   and pruned subgraphs without links count as f = 0. The paper averages f once over G and the pruned subgraphs
-   that still contain a link (eq. D9).
-
 The paper prints the probability sums from k = 1 (eqs. D4, D6). Taken literally that gives H_f = 0 for a single
 fork a -> {b, c}, and T = 0 for directed trees, contradicting its own Lemma (T = F = O = 1 for trees with
 equal-length leaves) and Figs. 12-13. The k = 0 identity term is therefore included here.
@@ -29,12 +17,6 @@ import networkx as nx
 import numpy as np
 
 HierarchyCoordinates = namedtuple("HierarchyCoordinates", "treeness feedforwardness orderability")
-
-VARIANTS = {
-    "corominas": dict(power="matrix", subgraphs="paper"),
-    "thesis": dict(power="elementwise", subgraphs="thesis"),
-    "thesis_matrix_power": dict(power="matrix", subgraphs="thesis"),  # isolates error 1
-}
 
 
 # ---------------------------------------------------------------------------- thresholds and condensation
@@ -136,11 +118,9 @@ def feedforwardness(dag):
 
 # ---------------------------------------------------------------------------- treeness
 
-def _path_probabilities(M, power):
-    """sum_k M^k over k = 0 .. n-1 (matrix powers; M is nilpotent on a DAG) or element-wise powers (thesis)."""
+def _path_probabilities(M):
+    """sum_k M^k over k = 0 .. n-1 (matrix powers; M is nilpotent on a DAG)."""
     n = M.shape[0]
-    if power == "elementwise":
-        return sum(np.power(M, k) for k in range(n))
     P, Mk = np.eye(n), np.eye(n)
     for _ in range(n):
         Mk = Mk @ M
@@ -160,85 +140,60 @@ def _row_normalize(X):
     return np.divide(X, s, out=np.zeros_like(X), where=s != 0)
 
 
-def graph_entropy(dag, forward, power="matrix"):
+def graph_entropy(dag, forward):
     """Forward entropy H_f (eq. D7) or backward entropy H_b (eq. D5) of a DAG.
 
     H_b = 1/|mu| sum_{i in mu} sum_{k not maximal} P(k <- i) log k_in(k),  P(. <- i) = [sum (B^T)^k]_i.,
         B_ij = A_ij / k_in(j)
     H_f = 1/|M| sum_{i in M} sum_{k not minimal} P(i -> k) log k_out(k),   P(i -> .) = [sum B'^k]_i.,
         B'_ij = A_ij / k_out(i)
-    With ``power="elementwise"`` this is the thesis code's computation (column-normalized B in both directions).
     """
     G = nx.convert_node_labels_to_integers(dag)
     A = nx.to_numpy_array(G, nodelist=range(len(G)), weight=None)
     maximal, minimal = max_min_layers(G, True), max_min_layers(G, False)
-    if power == "elementwise":
-        B = _col_normalize(A)
-        P = _path_probabilities(B if forward else B.T, "elementwise")
-        boundary = maximal if forward else minimal
-        inner = set(G.nodes()) - set(minimal if forward else maximal)
-        deg = G.out_degree if forward else G.in_degree
-        h = sum(P[k][b] * np.log(deg(k)) for b in boundary for k in inner)
-        return h / len(boundary)
     if forward:
-        P = _path_probabilities(_row_normalize(A), "matrix")
+        P = _path_probabilities(_row_normalize(A))
         boundary, inner, deg = maximal, set(G.nodes()) - set(minimal), G.out_degree
     else:
-        P = _path_probabilities(_col_normalize(A).T, "matrix")
+        P = _path_probabilities(_col_normalize(A).T)
         boundary, inner, deg = minimal, set(G.nodes()) - set(maximal), G.in_degree
     h = sum(P[b, k] * np.log(deg(k)) for b in boundary for k in inner)
     return h / len(boundary)
 
 
-def _f(dag, power):
+def _f(dag):
     """Eq. D8: f = (H_f - H_b) / max(H_f, H_b), 0 when both vanish."""
     if dag.number_of_edges() == 0:
         return 0.0
-    hf, hb = graph_entropy(dag, True, power), graph_entropy(dag, False, power)
+    hf, hb = graph_entropy(dag, True), graph_entropy(dag, False)
     if hf == 0 and hb == 0:
         return 0.0
     return (hf - hb) / max(hf, hb)
 
 
-def treeness(dag, power="matrix", subgraphs="paper"):
+def treeness(dag):
+    """Eq. D9: mean of f over G and the pruned subgraphs (top-down and bottom-up) that still contain a link."""
     top = recursive_leaf_removal(dag, from_top=True)
     bottom = recursive_leaf_removal(dag, from_top=False)
-    if subgraphs == "thesis":
-        top = top[:-1] if len(top) > 1 else top
-        bottom = bottom[:-1] if len(bottom) > 1 else bottom
-        total = 0.0
-        for seq in (top, bottom):
-            for i in range(len(seq)):
-                G = seq[i]
-                total += 0.0 if (len(seq[i:]) == 1 and len(G.nodes()) == 1) else _f_thesis(G, power)
-        return total / (len(top) + len(bottom))
-    W = [dag] + [G for G in top[1:] + bottom[1:] if G.number_of_edges() > 0]  # eq. D9
-    return float(np.mean([_f(G, power) for G in W]))
-
-
-def _f_thesis(G, power):
-    hf, hb = graph_entropy(G, True, power), graph_entropy(G, False, power)
-    if hf == 0 and hb == 0:
-        return 0.0
-    return (hf - hb) / max(hf, hb)
+    W = [dag] + [G for G in top[1:] + bottom[1:] if G.number_of_edges() > 0]
+    return float(np.mean([_f(G) for G in W]))
 
 
 # ---------------------------------------------------------------------------- weighted average
 
-def hierarchy_coordinates(A, num_thresholds=8, exp_threshold_distribution=None, variant="corominas"):
+def hierarchy_coordinates(A, num_thresholds=8, exp_threshold_distribution=None):
     """(treeness, feedforwardness, orderability) of a weighted adjacency matrix, averaged over thresholds.
 
     Binary matrices use a single threshold. ``exp_threshold_distribution=0.5`` gives the thesis's exponential
     thresholds; None gives linear ones.
     """
-    opts = VARIANTS[variant]
     A = np.asarray(A, dtype=float)
     if not A.any():
         return HierarchyCoordinates(0.0, 0.0, 0.0)
     if np.isin(A, (0.0, 1.0)).all():
         num_thresholds = 1
     condensed, _ = node_weighted_condense(A, num_thresholds, exp_threshold_distribution)
-    t = np.mean([treeness(c, opts["power"], opts["subgraphs"]) for c in condensed])
+    t = np.mean([treeness(c) for c in condensed])
     f = np.mean([feedforwardness(c) for c in condensed])
     o = np.mean([orderability(c) for c in condensed])
     return HierarchyCoordinates(float(t), float(f), float(o))

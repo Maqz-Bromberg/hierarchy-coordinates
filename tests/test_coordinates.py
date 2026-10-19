@@ -44,8 +44,20 @@ def test_fork_entropies():
 
 def test_matrix_powers_weight_entropy_by_reach():
     """Diamond with a tail: 0 -> {1, 2} -> 3 -> 4. Reversing from 4 crosses node 3 (two parents) with
-    probability 1, so H_b = ln 2; following the flow, the only choice is at 0, so H_f = ln 2.
-    Graphs where reach weighting matters are in test_thesis_variant.py."""
+    probability 1, so H_b = ln 2; following the flow, the only choice is at 0, so H_f = ln 2."""
     G = nx.DiGraph([(0, 1), (0, 2), (1, 3), (2, 3), (3, 4)])
     assert graph_entropy(G, forward=False) == pytest.approx(np.log(2))
     assert graph_entropy(G, forward=True) == pytest.approx(np.log(2))
+
+
+def test_backward_entropy_is_weighted_by_reach():
+    """0 -> 1 <- 2 and 3 -> 4. Reversing from the two minimal nodes {1, 4}: only the walk from 1 meets a choice
+    (k_in(1) = 2), so H_b = (ln 2) / 2, not the ln 2 of summing log k_in over every non-maximal node."""
+    G = nx.DiGraph([(0, 1), (2, 1), (3, 4)])
+    assert graph_entropy(G, forward=False) == pytest.approx(np.log(2) / 2)
+
+
+def test_unreachable_choices_do_not_count():
+    """0 -> 1 -> 2 and 3 -> 4 <- 5: the fork into 4 is met only by the walk from 4, so it is charged once of two."""
+    G = nx.DiGraph([(0, 1), (1, 2), (3, 4), (5, 4)])
+    assert graph_entropy(G, forward=False) == pytest.approx(np.log(2) / 2)
