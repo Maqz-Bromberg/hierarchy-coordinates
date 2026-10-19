@@ -47,6 +47,14 @@ single fork a → {b, c} would have H_f = 0 and every directed tree T = 0, contr
 = 1 for trees with equal-depth leaves) and its Figs. 12–13. The k = 0 identity term is therefore included. The tests
 check the Lemma cases.
 
+**Unresolved: where exponential thresholds start.** The linear thresholds run from the smallest weight up to the
+largest. The exponential ones (`exp_threshold_distribution`), taken from the thesis code, are scaled by (max − min)
+but not shifted by min, so they run from near 0 up to max − min. When the smallest weight is well above 0, the low
+thresholds all sit below every weight and produce the same complete graph. For example, with weights in [0.5, 1] all
+eight thresholds fall in [0.03, 0.5], none above the smallest weight, so every threshold keeps essentially every edge.
+It is unclear whether the thesis intended this or meant to add min, so the
+behaviour is kept as is.
+
 ## Migrating from the 2021 package
 
 Treeness now follows the paper's definition (eqs. D4–D9), so its values differ from the 2021 package; F and O are
